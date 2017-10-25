@@ -10,13 +10,50 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" MinHeight="30"></RowDefinition>
             <RowDefinition Height="*"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"></ColumnDefinition>
             <ColumnDefinition Width="Auto"></ColumnDefinition>
         </Grid.ColumnDefinitions>
         <TextBox Grid.Column="0" Grid.Row="0" Name="UrlBox"></TextBox>
-        <Button Grid.Column="1" Grid.Row="0" Name="DownloadButton" Click="DownloadButton_Click">Download</Button>
-        <ListView Grid.Row="1" Grid.ColumnSpan="2" Name="DownloadList"></ListView>
+        <Button Grid.Column="1" Grid.Row="0" Name="LoadButton" Click="LoadButton_Click">Load Lessons</Button>
+        <ListView Grid.Row="1" Grid.ColumnSpan="2" Name="DownloadList" ItemsSource="{Binding}" 
+                  HorizontalContentAlignment="Stretch"
+                  IsSynchronizedWithCurrentItem="True">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="Download?" Width="Auto">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <CheckBox Name="WillDownloadCheckbox" IsChecked="{Binding WillDownload}" IsEnabled="{Binding CanDownload}"></CheckBox>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="FileName" Width="Auto">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding FileName}"></TextBlock>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="Progression" Width="Auto">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <ProgressBar Value="{Binding DownloadPercentage}" Minimum="0" Maximum="100" MinWidth="200" Height="15"></ProgressBar>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
+        <Grid Grid.Row="2" Grid.ColumnSpan="2" Name="BottomGrid" Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"></ColumnDefinition>
+                <ColumnDefinition Width="*"></ColumnDefinition>
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Name="DownloadButton" Click="DownloadButton_Click">Download</Button>
+            <Button Grid.Column="1" Name="CancelButton" Click="CancelButton_Click">Cacnel</Button>
+        </Grid>
     </Grid>
 </Window>
