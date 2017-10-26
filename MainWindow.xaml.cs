@@ -70,6 +70,27 @@ namespace PoliDown {
                 using (var rs = new StreamReader(s))
                 {
                     string str = rs.ReadToEnd();
+                    HtmlDocument page = new HtmlDocument();
+                    page.LoadHtml(str);
+                    List<HtmlNode> lessonsList = page.DocumentNode.Descendants().Where(
+                            x => x.Name == "div" && x.Attributes["id"] != null
+                        ).Where(x => x.Attributes["id"].Value == "lessonList").ToList().First().Descendants()
+                        .Where(x => x.Name = "a" && x.Attributes["href"] != null).Where(x => x.Attributes["href"].Value.StartsWith(url.Split('?').First())).ToList();
+
+                    ObservableCollection<DownloadListElement> downloadList = new ObservableCollection<DownloadListElement>();
+                    DownloadList.ItemsSource = downloadList;
+                    BottomGrid.Visibility = Visibility.Visible;
+                    lessonsList.ForEach((x) => { DownloadList.Dispatcher.Invoke(()=>downloadList.Add(new DownloadListElement(x.InnerText, x.Attributes["href"].Value))); });
+
+                    downloadList.ToList().ForEach(async (x) =>
+                    {
+                        var strin = await RetreiveVideoUrlElearning(urlBase + "/" + x.fileUrl);
+                        downloadList.ElementAt(downloadList.IndexOf(x)).fileUrl = strin;
+                        DownloadList.Dispatcher.Invoke(() =>
+                        {
+                            x.CanDownload = true;
+                        });
+                    });
                 }
             }
         }
