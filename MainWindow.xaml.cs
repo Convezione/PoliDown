@@ -111,42 +111,6 @@ namespace PoliDown {
             }
         }
 
-        private void LoadElearning(string url, string urlBase, CookieCollection jar = null)
-        {
-            WebClient c = new WebClient();
-            
-            HtmlDocument page = new HtmlDocument();
-            page.LoadHtml(c.DownloadString(url));
-            List<HtmlNode> lessonsList = page.DocumentNode.Descendants().Where(
-                    x => x.Name == "div" && x.Attributes["id"] != null
-                ).Where(x => x.Attributes["id"].Value == "lessonList").ToList().First().Descendants()
-                .Where(x => x.Name == "li" && x.ParentNode.Attributes["class"] != null)
-                .Where(x => x.ParentNode.Attributes["class"].Value == "lezioni").ToList();
-
-            ObservableCollection<DownloadListElement> downloadList = new ObservableCollection<DownloadListElement>();
-            DownloadList.ItemsSource = downloadList;
-            BottomGrid.Visibility = Visibility.Visible;
-
-            Dictionary<string, string> lessonsPageList = new Dictionary<string, string>();
-            lessonsList.ForEach(x => x.Descendants().Where(y => y.Name == "a" && y.Attributes["class"]==null).ToList()
-                .ForEach(z => lessonsPageList.Add(z.InnerText, z.Attributes["href"].Value)));
-            lessonsPageList.ToList().ForEach(x =>
-                {
-                    DownloadList.Dispatcher.Invoke(()=>downloadList.Add(new DownloadListElement(x.Key, x.Value)));
-                });
-                
-                
-            downloadList.ToList().ForEach(async(x) =>
-            {
-                var str = await RetreiveVideoUrlElearning(urlBase + "/" + x.fileUrl,jar);
-                downloadList.ElementAt(downloadList.IndexOf(x)).fileUrl = str;
-                DownloadList.Dispatcher.Invoke(() =>
-                {
-                    x.CanDownload = true;
-                });
-            });
-        }
-
         private async Task<string> RetreiveVideoUrlElearning(string pageUrl,CookieCollection jar = null)
         {
             HttpWebRequest request = HttpWebRequest.Create(pageUrl) as HttpWebRequest;
