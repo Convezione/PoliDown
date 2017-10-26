@@ -74,6 +74,8 @@ namespace PoliDown
                 }).First();
                 
                 element.Click();
+                chrDriver.Url = "https://didattica.polito.it/portal/page/portal/home/Studente";
+                chrDriver.Navigate();
                 if (chrDriver.Manage().Cookies.GetCookieNamed("ShibCookie") != null)
                 {
                     chrDriver.Manage().Cookies.AllCookies.ToList()

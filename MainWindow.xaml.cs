@@ -52,8 +52,12 @@ namespace PoliDown {
             }
         }
 
-        private void LoadDidattica(string url, string urlBase, CookieCollection jar = null)
+        private async void LoadDidattica(string url, string urlBase, CookieCollection jar = null)
         {
+            if (jar == null)
+            {
+                return;
+            }
             HttpWebRequest request = HttpWebRequest.Create(url) as HttpWebRequest;
             request.CookieContainer = new CookieContainer();
             foreach (Cookie c in jar)
@@ -69,22 +73,34 @@ namespace PoliDown {
             {
                 using (var rs = new StreamReader(s))
                 {
-                    string str = rs.ReadToEnd();
+                    string str = await rs.ReadToEndAsync();
                     HtmlDocument page = new HtmlDocument();
                     page.LoadHtml(str);
                     List<HtmlNode> lessonsList = page.DocumentNode.Descendants().Where(
                             x => x.Name == "div" && x.Attributes["id"] != null
                         ).Where(x => x.Attributes["id"].Value == "lessonList").ToList().First().Descendants()
-                        .Where(x => x.Name = "a" && x.Attributes["href"] != null).Where(x => x.Attributes["href"].Value.StartsWith(url.Split('?').First())).ToList();
+                        .Where((x) =>
+                        {
+                            bool b = x.Name == "a" && x.Attributes["href"] != null;
+                            if (x.Attributes["class"] == null)
+                            {
+                                b = b && true;
+                            }
+                            else
+                            {
+                                b = b && (x.Attributes["class"].Value != "argoLink");
+                            }
+                            return b;
+                            }).Where(x => x.Attributes["href"].Value.StartsWith(url.Split('/').Last().Split('?').First())).ToList();
 
                     ObservableCollection<DownloadListElement> downloadList = new ObservableCollection<DownloadListElement>();
                     DownloadList.ItemsSource = downloadList;
                     BottomGrid.Visibility = Visibility.Visible;
-                    lessonsList.ForEach((x) => { DownloadList.Dispatcher.Invoke(()=>downloadList.Add(new DownloadListElement(x.InnerText, x.Attributes["href"].Value))); });
+                    lessonsList.ForEach((x) => { DownloadList.Dispatcher.Invoke(()=>downloadList.Add(new DownloadListElement(x.InnerText, x.Attributes["href"].Value.Replace("amp;","")))); });
 
                     downloadList.ToList().ForEach(async (x) =>
                     {
-                        var strin = await RetreiveVideoUrlElearning(urlBase + "/" + x.fileUrl);
+                        var strin = await RetreiveVideoUrlElearning(urlBase + x.fileUrl,jar);
                         downloadList.ElementAt(downloadList.IndexOf(x)).fileUrl = strin;
                         DownloadList.Dispatcher.Invoke(() =>
                         {
@@ -95,7 +111,7 @@ namespace PoliDown {
             }
         }
 
-        private void LoadElearning(string url, string urlBase, CookieContainer jar = null)
+        private void LoadElearning(string url, string urlBase, CookieCollection jar = null)
         {
             WebClient c = new WebClient();
             
@@ -122,7 +138,7 @@ namespace PoliDown {
                 
             downloadList.ToList().ForEach(async(x) =>
             {
-                var str = await RetreiveVideoUrlElearning(urlBase + "/" + x.fileUrl);
+                var str = await RetreiveVideoUrlElearning(urlBase + "/" + x.fileUrl,jar);
                 downloadList.ElementAt(downloadList.IndexOf(x)).fileUrl = str;
                 DownloadList.Dispatcher.Invoke(() =>
                 {
@@ -131,18 +147,35 @@ namespace PoliDown {
             });
         }
 
-        private async Task<string> RetreiveVideoUrlElearning(string pageUrl)
+        private async Task<string> RetreiveVideoUrlElearning(string pageUrl,CookieCollection jar = null)
         {
-            WebClient c = new WebClient();
-            HtmlDocument page = new HtmlDocument();
-            page.LoadHtml(await c.DownloadStringTaskAsync(pageUrl));
-            return page.DocumentNode.Descendants().Where(x => x.Name == "a" && x.Attributes["id"] != null)
-                .Where(x => x.Attributes["id"].Value == "aflowplayer").ToList().First().Attributes["href"].Value;
+            HttpWebRequest request = HttpWebRequest.Create(pageUrl) as HttpWebRequest;
+            request.CookieContainer = new CookieContainer();
+            foreach (Cookie c in jar)
+            {
+                request.CookieContainer.Add(c);
+            }
+            request.UserAgent = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.1";
+            request.UseDefaultCredentials = false;
+            request.PreAuthenticate = false;
+
+            HttpWebResponse response = request.GetResponse() as HttpWebResponse;
+            using (var s = response.GetResponseStream())
+            {
+                using (var rs = new StreamReader(s))
+                {
+                    string str = rs.ReadToEnd();
+                    HtmlDocument page = new HtmlDocument();
+                    page.LoadHtml(str);
+                    return page.DocumentNode.Descendants().Where(x => x.Name == "a" && x.Attributes["id"] != null)
+                        .Where(x => x.Attributes["id"].Value == "aflowplayer").ToList().First().Attributes["href"].Value;
+                }
+            }
         }
 
         private void DownloadButton_Click(object sender, RoutedEventArgs e)
         {
-            List<DownloadListElement> downloadList = DownloadList.ItemsSource as List<DownloadListElement>;
+            ObservableCollection<DownloadListElement> downloadList = DownloadList.ItemsSource as ObservableCollection<DownloadListElement>;
             if (downloadList == null)
             {
                 return;
@@ -163,8 +196,13 @@ namespace PoliDown {
                 }
             }
             
-            downloadList.Where(a=>a.WillDownload && !a.CanDownload).AsParallel().ForAll(async (y) =>
+            downloadList.Where(a=>a.WillDownload && a.CanDownload).AsParallel().ForAll(async (y) =>
             {
+                DownloadList.Dispatcher.Invoke(() =>
+                {
+                    var li = DownloadList.ItemsSource as ObservableCollection<DownloadListElement>;
+                    li.ElementAt(li.IndexOf(y)).CanDownload = false;
+                });
                 WebClient videoCli = new WebClient();
                 videoCli.DownloadProgressChanged += (send, args) =>
                 {
@@ -174,7 +212,19 @@ namespace PoliDown {
                         l.ElementAt(l.IndexOf(y)).DownloadPercentage = args.ProgressPercentage;
                     });
                 };
-                await videoCli.DownloadFileTaskAsync(new Uri(y.fileUrl), saveFolder + "\\" + y.FileName +"."+y.fileUrl.Split('.').Last());
+                try
+                {
+                    await videoCli.DownloadFileTaskAsync(new Uri(y.fileUrl),
+                        saveFolder + "\\" + y.FileName + "." + y.fileUrl.Split('.').Last());
+                }
+                catch (Exception ex)
+                {
+                    DownloadList.Dispatcher.Invoke(() =>
+                    {
+                        var li = DownloadList.ItemsSource as ObservableCollection<DownloadListElement>;
+                        li.ElementAt(li.IndexOf(y)).CanDownload = true;
+                    });
+                }
             });
         }
         
