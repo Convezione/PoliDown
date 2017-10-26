@@ -198,18 +198,13 @@ namespace PoliDown {
             
             downloadList.Where(a=>a.WillDownload && a.CanDownload).AsParallel().ForAll(async (y) =>
             {
-                DownloadList.Dispatcher.Invoke(() =>
-                {
-                    var li = DownloadList.ItemsSource as ObservableCollection<DownloadListElement>;
-                    li.ElementAt(li.IndexOf(y)).CanDownload = false;
-                });
+                y.CanDownload = false;
                 WebClient videoCli = new WebClient();
                 videoCli.DownloadProgressChanged += (send, args) =>
                 {
                     DownloadList.Dispatcher.Invoke(() =>
                     {
-                        var l = DownloadList.ItemsSource as ObservableCollection<DownloadListElement>;
-                        l.ElementAt(l.IndexOf(y)).DownloadPercentage = args.ProgressPercentage;
+                        y.DownloadPercentage = args.ProgressPercentage;
                     });
                 };
                 try
@@ -219,11 +214,7 @@ namespace PoliDown {
                 }
                 catch (Exception ex)
                 {
-                    DownloadList.Dispatcher.Invoke(() =>
-                    {
-                        var li = DownloadList.ItemsSource as ObservableCollection<DownloadListElement>;
-                        li.ElementAt(li.IndexOf(y)).CanDownload = true;
-                    });
+                    y.CanDownload = true;
                 }
             });
         }
