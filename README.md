@@ -1,2 +1,2 @@
 # PoliDown
-Lesson Downloader for Polito made in c# using wpf.
+Lesson Downloader for Polito video lessons made in c# using wpf.
